@@ -17,11 +17,6 @@
 
 ### Visual Design
 - Applied brand color palette:
-  - Warm Cream: #FFF8EE
-  - Muted Blush: #E6C0B3
-  - Cocoa Brown: #42342B
-  - Muted Green: #7D806B
-  - Soft Gold: #CDB170
 - Used Source Sans Pro for brand name
 - Used Source Serif Pro for headings
 - Made logo round with transparent background
