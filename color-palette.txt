@@ -1,9 +1,9 @@
-Samee's Bakehouse Color Palette
+Samee's Bakehouse - Corrected Color Palette
 
-Warm Cream: #F855EF
-Muted Blush: #D7A9A3
-Cocoa Brown: #5B3A29
-Muted Green: #7A8C77
-Soft Gold: #D7B77B
+Warm Cream: #FFF8EE
+Muted Blush: #E6C0B3
+Cocoa Brown: #42342B
+Muted Green: #7D806B
+Soft Gold: #CDB170
 
-Note: These colors should be used throughout the website for brand consistency.
+Note: These are the corrected colors for the bakery website.
