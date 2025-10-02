@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Samee's Bakehouse - Menu</title>
+    <meta name="description" content="Browse Samee's Bakehouse menu. Fresh cakes, bakes, and treats." />
+    <link rel="icon" href="/assets/logo.svg" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'EB Garamond', serif; line-height: 1.6; color: #2c2c2c; background-color: #fefefe; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+
+      /* Simple top nav */
+      .topnav { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 10px 0 8px; }
+      .topnav a { color: #333; text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: 15px; }
+      .topnav a:hover { background: #f5f5f5; }
+      .topnav a.active { background: #f0f0f0; color: #5B3A29; font-weight: 600; }
+
+      /* Hero copied from home */
+      .hero { text-align: center; padding: 40px 0; background: linear-gradient(135deg, #F5EFE6 0%, #D7A9A3 100%); border-radius: 20px; margin-bottom: 20px; }
+      .logo { width: 150px; height: 150px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); background: #F5EFE6; }
+      .logo img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; filter: contrast(1.1) brightness(1.05); }
+      h1 { font-family: 'Cormorant Garamond', serif; font-size: 2.2em; color: #5B3A29; margin-bottom: 10px; font-weight: 400; letter-spacing: -0.02em; }
+      .tagline { font-size: 1.1em; color: #7A8C77; font-style: italic; }
+
+      .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0 6px; }
+      .section-head h2 { font-family: 'Cormorant Garamond', serif; color: #5B3A29; font-weight: 500; letter-spacing: -0.01em; font-size: 1.6em; }
+      .cta { display: inline-block; background: #D7B77B; color: #5B3A29; padding: 10px 14px; border-radius: 10px; text-decoration: none; font-weight: 600; box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+      .cta:hover { filter: brightness(0.98); }
+      .updated { color: #777; font-size: 12px; text-align: right; margin-top: 4px; }
+
+      .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 14px; }
+      .tab { padding: 8px 12px; border: 1px solid #eee; background: white; border-radius: 999px; color: #333; cursor: pointer; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      .tab.active { background: #5B3A29; color: white; border-color: #5B3A29; }
+
+      .grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; }
+      @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+      .card { background: white; border: 1px solid #efefef; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+      .card .img-wrap { width: 100%; aspect-ratio: 16 / 10; background: #f4efeb; }
+      .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .card-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+      .title { font-weight: 700; color: #5B3A29; }
+      .desc { color: #666; font-size: 14px; }
+      .price { margin-top: auto; font-weight: 600; color: #2c2c2c; }
+
+      .loading, .error { text-align: center; color: #777; padding: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <nav class="topnav">
+        <a href="/">Home</a>
+        <a href="/menu/" class="active">Menu</a>
+      </nav>
+
+      <div class="hero">
+        <div class="logo">
+          <img src="/assets/logo.svg" alt="Samee's Bakehouse Logo" />
+        </div>
+        <h1>Samee's Bakehouse</h1>
+        <p class="tagline">Bespoke. Fresh. Flavour Forward</p>
+      </div>
+
+      <div class="section-head">
+        <h2>Our Menu</h2>
+        <a id="order-cta" class="cta" target="_blank" rel="noopener">Order Now</a>
+      </div>
+      <div id="last-updated" class="updated"></div>
+
+      <div id="category-tabs" class="tabs"></div>
+
+      <div id="state-loading" class="loading">Loading menu…</div>
+      <div id="state-error" class="error" style="display:none">Couldn’t load the menu. Please refresh in a moment.</div>
+      <div id="menu-grid" class="grid" style="display:none"></div>
+    </div>
+
+    <!-- Config: replace values based on your Google Sheet and WhatsApp number -->
+    <!--
+      How to get these:
+      - SHEET_ID: From https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit
+      - GID: The tab’s gid query param (e.g., gid=0). Use the tab that has the menu data.
+      - WHATSAPP: Digits only, with country code (e.g., 919876543210)
+    -->
+    <script id="menu-config"
+      data-sheet-id="1R68f_VwRHnVG1ENaAZySR3-qxK2tr0Ik8ZPr_92mWo8"
+      data-gid="0"
+      data-whatsapp-link="https://wa.me/message/NFY3RK2D7L4PH1"
+    ></script>
+    
+    <script src="/scripts/menu.js" defer></script>
+  </body>
+</html>
