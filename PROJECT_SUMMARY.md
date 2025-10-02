@@ -34,3 +34,17 @@ Live website at: sameessbakehouse.com
 - Easy to update
 - Free hosting
 - Custom domain
+
+## 🧁 Dynamic Menu (Google Sheets + Cloudinary)
+- Menu page: `/menu/` pulls items from a published Google Sheet via JSONP.
+- Sheet columns supported (case-insensitive): Category, Item, Description, Price, Available, Image URL.
+- To update the menu: edit the sheet and the site reflects changes automatically.
+- Images: upload to Cloudinary (free), copy the Secure URL, and paste into the Image URL column.
+- Order button: global "Order Now" links to WhatsApp.
+
+Setup notes
+- Sheet must be File → Share → Publish to the web (entire document) for the JSON feed to load.
+- Configure the page in `menu/index.html` inside the `<script id="menu-config">` tag:
+  - `data-sheet-id`: your Google Sheet ID
+  - `data-gid`: tab gid (usually 0)
+  - `data-whatsapp-link`: your WhatsApp link
