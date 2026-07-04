@@ -4,6 +4,8 @@
   const GID = cfgEl?.dataset?.gid || '0';
   const WHATSAPP = (cfgEl?.dataset?.whatsapp || '').replace(/\D+/g, '');
   const WHATSAPP_LINK = cfgEl?.dataset?.whatsappLink || cfgEl?.dataset?.waLink || '';
+  // Menu data now comes from the Samees admin app (was Google Sheets).
+  const MENU_API = cfgEl?.dataset?.menuApi || 'https://orders.sameesbakehouse.com/api/menu';
 
   const elTabs = document.getElementById('category-tabs');
   const elGrid = document.getElementById('menu-grid');
@@ -166,47 +168,47 @@
     elError.style.display = 'block';
   }
 
-  function loadSheet() {
-    if (!SHEET_ID) {
-      showError('Missing SHEET_ID in config');
-      return;
-    }
+  async function loadMenu() {
     elLoading.style.display = 'block';
     elGrid.style.display = 'none';
     elError.style.display = 'none';
 
-    // Set updated timestamp to now (publish feed doesn’t include it)
     const now = new Date();
     elUpdated.textContent = `Last updated: ${now.toLocaleString()}`;
 
-    // Install JSONP handler compatible with gviz
-    window.google = window.google || {};
-    window.google.visualization = window.google.visualization || {};
-    window.google.visualization.Query = window.google.visualization.Query || {};
-    window.google.visualization.Query.setResponse = function(resp) {
-      try {
-        parseGviz(resp);
-        renderTabs();
-        renderGrid();
-      } catch (e) {
-        showError(e.message || 'Failed to parse sheet');
-      }
-    };
+    try {
+      const res = await fetch(MENU_API, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
 
-    // Inject script
-    const tq = encodeURIComponent('select *');
-    const src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${encodeURIComponent(GID)}&tq=${tq}&tqx=out:json`;
-    const s = document.createElement('script');
-    s.src = src;
-    s.async = true;
-    s.onerror = () => showError('Failed to load sheet');
-    document.body.appendChild(s);
+      const items = [];
+      const categories = [];
+      (data.categories || []).forEach(cat => {
+        let hasVisible = false;
+        (cat.items || []).forEach(it => {
+          if (it.available === false) return; // hide out-of-stock items
+          items.push({
+            category: cat.name || '',
+            item: it.name || '',
+            description: it.description || '',
+            price: it.price || '',
+            image_url: it.image || '',
+            available: true,
+          });
+          hasVisible = true;
+        });
+        // preserve the exact category order set in the admin app
+        if (hasVisible && cat.name) categories.push(cat.name);
+      });
 
-    // Timeout safety
-    setTimeout(() => {
-      if (!state.items.length) showError('Loading took too long.');
-    }, 12000);
+      state.items = items;
+      state.categories = categories;
+      renderTabs();
+      renderGrid();
+    } catch (e) {
+      showError(e.message || 'Failed to load menu');
+    }
   }
 
-  loadSheet();
+  loadMenu();
 })();
