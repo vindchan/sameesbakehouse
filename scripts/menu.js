@@ -251,6 +251,7 @@
         let hasVisible = false;
         (cat.items || []).forEach(it => {
           if (it.available === false) return; // hide out-of-stock items
+          if (!(it.image || '').trim()) return; // hide items without a photo
           items.push({
             category: cat.name || '',
             item: it.name || '',
