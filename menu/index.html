@@ -31,15 +31,20 @@
       .cta:hover { filter: brightness(0.98); }
       .updated { color: #777; font-size: 12px; text-align: right; margin-top: 4px; }
 
-      .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 14px; }
-      .tab { padding: 8px 12px; border: 1px solid #eee; background: white; border-radius: 999px; color: #333; cursor: pointer; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+      /* Category quick-jump chips — they scroll to a category, they don't filter. */
+      .tabs { display: flex; gap: 8px; margin: 10px 0 6px; padding: 6px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; position: sticky; top: 0; z-index: 20; background: #fefefe; }
+      .tabs::-webkit-scrollbar { display: none; }
+      .tab { flex: 0 0 auto; white-space: nowrap; padding: 8px 14px; border: 1px solid #eee; background: white; border-radius: 999px; color: #333; cursor: pointer; user-select: none; font-size: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: background .15s, color .15s; }
       .tab.active { background: #5B3A29; color: white; border-color: #5B3A29; }
 
-      .grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 14px; }
-      @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      /* One section per category, each with a big heading (Swiggy-style). */
+      .cat-section { scroll-margin-top: 60px; margin-top: 24px; }
+      .cat-heading { font-family: 'Cormorant Garamond', serif; color: #5B3A29; font-weight: 600; font-size: 1.9em; letter-spacing: -0.01em; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #EADBC8; }
+
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
       .card { background: white; border: 1px solid #efefef; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
-      .card .img-wrap { width: 100%; aspect-ratio: 16 / 10; background: #f4efeb; }
+      .card .img-wrap { width: 100%; aspect-ratio: 4 / 5; background: #f4efeb; }
       .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .card-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
       .title { font-weight: 700; color: #5B3A29; }
@@ -47,6 +52,17 @@
       .price { margin-top: auto; font-weight: 600; color: #2c2c2c; }
 
       .loading, .error { text-align: center; color: #777; padding: 24px; }
+
+      /* Floating bottom-right button → popup list to jump to a category quickly. */
+      .jump-fab { position: fixed; right: 16px; bottom: 16px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; background: #5B3A29; color: #fff; border: none; border-radius: 999px; padding: 12px 18px; font-family: inherit; font-size: 15px; font-weight: 600; box-shadow: 0 6px 18px rgba(0,0,0,.22); cursor: pointer; }
+      .jump-fab:hover { filter: brightness(1.08); }
+      .jump-backdrop { position: fixed; inset: 0; z-index: 39; display: none; }
+      .jump-backdrop.open { display: block; }
+      .jump-menu { position: fixed; right: 16px; bottom: 68px; z-index: 41; display: none; min-width: 210px; max-height: 62vh; overflow-y: auto; background: #fff; border: 1px solid #eee; border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.18); padding: 8px; }
+      .jump-menu.open { display: block; }
+      .jump-menu .jump-title { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #999; padding: 6px 12px 8px; }
+      .jump-menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 10px 12px; border-radius: 8px; font-family: inherit; font-size: 15px; color: #333; cursor: pointer; }
+      .jump-menu button:hover { background: #F5EFE6; color: #5B3A29; }
     </style>
   </head>
   <body>
@@ -74,8 +90,16 @@
 
       <div id="state-loading" class="loading">Loading menu…</div>
       <div id="state-error" class="error" style="display:none">Couldn’t load the menu. Please refresh in a moment.</div>
-      <div id="menu-grid" class="grid" style="display:none"></div>
+      <div id="menu-sections" style="display:none"></div>
     </div>
+
+    <!-- Quick-jump to a category (like Swiggy's menu button) -->
+    <button id="jump-fab" class="jump-fab" type="button" aria-haspopup="true" aria-expanded="false" style="display:none">☰ Categories</button>
+    <div id="jump-backdrop" class="jump-backdrop"></div>
+    <nav id="jump-menu" class="jump-menu" aria-label="Jump to category">
+      <div class="jump-title">Jump to</div>
+      <div id="jump-list"></div>
+    </nav>
 
     <!-- Config: replace values based on your Google Sheet and WhatsApp number -->
     <!--
