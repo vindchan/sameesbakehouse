@@ -17,6 +17,14 @@
   const elJumpMenu = document.getElementById('jump-menu');
   const elJumpList = document.getElementById('jump-list');
   const elJumpBackdrop = document.getElementById('jump-backdrop');
+  const elDetailBackdrop = document.getElementById('detail-backdrop');
+  const elDetailModal = document.getElementById('detail-modal');
+  const elDetailClose = document.getElementById('detail-close');
+  const elGallery = document.getElementById('detail-gallery');
+  const elDetailCount = document.getElementById('detail-count');
+  const elDetailTitle = document.getElementById('detail-title');
+  const elDetailDesc = document.getElementById('detail-desc');
+  const elDetailPrice = document.getElementById('detail-price');
   const slug = (s) => 'cat-' + String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
   // Set WhatsApp CTA
@@ -86,9 +94,54 @@
   elFab.addEventListener('click', () => { (elJumpMenu.classList.contains('open') ? closeJump : openJump)(); });
   elJumpBackdrop.addEventListener('click', closeJump);
 
+  // ── Item detail overlay: all photos, high quality, swipe left/right ───────────
+  function openDetail(it) {
+    const imgs = (it.images && it.images.length) ? it.images : (it.image_url ? [it.image_url] : []);
+    elGallery.innerHTML = '';
+    imgs.forEach((u) => {
+      const im = document.createElement('img');
+      im.src = u;
+      im.alt = it.item || 'Menu item';
+      im.loading = 'lazy';
+      elGallery.appendChild(im);
+    });
+    elDetailTitle.textContent = it.item || '';
+    elDetailDesc.textContent = it.description || '';
+    elDetailDesc.style.display = it.description ? 'block' : 'none';
+    elDetailPrice.textContent = it.price || '';
+    elDetailPrice.style.display = it.price ? 'block' : 'none';
+    elGallery.scrollLeft = 0;
+    updateDetailCount();
+    elDetailBackdrop.classList.add('open');
+    elDetailModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDetail() {
+    elDetailBackdrop.classList.remove('open');
+    elDetailModal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function updateDetailCount() {
+    const total = elGallery.children.length;
+    const w = elGallery.clientWidth;
+    const i = w ? Math.round(elGallery.scrollLeft / w) : 0;
+    elDetailCount.textContent = total > 1 ? `${Math.min(i + 1, total)} / ${total}` : '';
+    elDetailCount.style.display = total > 1 ? 'block' : 'none';
+  }
+  elGallery.addEventListener('scroll', updateDetailCount, { passive: true });
+  elDetailClose.addEventListener('click', closeDetail);
+  elDetailBackdrop.addEventListener('click', closeDetail);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); closeJump(); } });
+
   function makeCard(it) {
     const card = document.createElement('div');
     card.className = 'card';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.addEventListener('click', () => openDetail(it));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(it); }
+    });
 
     const wrap = document.createElement('div');
     wrap.className = 'img-wrap';
@@ -102,6 +155,12 @@
       img.style.objectFit = 'contain';
       wrap.style.background = '#F5EFE6';
     };
+    // Square or wide photo → show it 1:1; taller-than-square → keep the 4:5 frame.
+    img.addEventListener('load', () => {
+      if ((img.currentSrc || img.src).indexOf('logo.svg') !== -1) return;
+      const r = img.naturalWidth / img.naturalHeight;
+      if (r) wrap.style.aspectRatio = r >= 0.98 ? '1 / 1' : '4 / 5';
+    });
     wrap.appendChild(img);
     card.appendChild(wrap);
 
@@ -258,6 +317,7 @@
             description: it.description || '',
             price: it.price || '',
             image_url: it.image || '',
+            images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
             available: true,
           });
           hasVisible = true;

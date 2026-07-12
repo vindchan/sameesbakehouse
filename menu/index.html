@@ -41,9 +41,11 @@
       .cat-section { scroll-margin-top: 60px; margin-top: 24px; }
       .cat-heading { font-family: 'Cormorant Garamond', serif; color: #5B3A29; font-weight: 600; font-size: 1.9em; letter-spacing: -0.01em; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #EADBC8; }
 
-      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
 
-      .card { background: white; border: 1px solid #efefef; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+      .card { background: white; border: 1px solid #efefef; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; height: 100%; box-shadow: 0 2px 8px rgba(0,0,0,.05); cursor: pointer; transition: box-shadow .15s, transform .15s; }
+      .card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.10); transform: translateY(-1px); }
+      /* Frame defaults to 4:5; menu.js sets it to 1:1 for square/wide photos on load. */
       .card .img-wrap { width: 100%; aspect-ratio: 4 / 5; background: #f4efeb; }
       .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .card-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -63,6 +65,21 @@
       .jump-menu .jump-title { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #999; padding: 6px 12px 8px; }
       .jump-menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 10px 12px; border-radius: 8px; font-family: inherit; font-size: 15px; color: #333; cursor: pointer; }
       .jump-menu button:hover { background: #F5EFE6; color: #5B3A29; }
+
+      /* Item detail overlay — tap a card to see all photos, swipeable + high quality. */
+      .detail-backdrop { position: fixed; inset: 0; z-index: 50; display: none; background: rgba(30,22,18,.55); backdrop-filter: blur(2px); }
+      .detail-backdrop.open { display: block; }
+      .detail-modal { position: fixed; z-index: 51; left: 50%; top: 50%; transform: translate(-50%,-50%); display: none; flex-direction: column; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 40px); background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+      .detail-modal.open { display: flex; }
+      .detail-close { position: absolute; top: 10px; right: 10px; z-index: 2; width: 34px; height: 34px; border: none; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+      .detail-gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; background: #f4efeb; }
+      .detail-gallery::-webkit-scrollbar { display: none; }
+      .detail-gallery img { flex: 0 0 100%; scroll-snap-align: center; width: 100%; height: min(64vh, 520px); object-fit: contain; background: #f4efeb; }
+      .detail-count { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font-size: 13px; }
+      .detail-info { padding: 16px 18px 20px; overflow-y: auto; }
+      .detail-info h3 { font-family: 'Cormorant Garamond', serif; color: #5B3A29; font-weight: 600; font-size: 1.6em; letter-spacing: -0.01em; }
+      .detail-info .detail-desc { color: #555; margin-top: 6px; }
+      .detail-info .detail-price { margin-top: 10px; font-weight: 700; font-size: 1.1em; color: #2c2c2c; }
     </style>
   </head>
   <body>
@@ -100,6 +117,19 @@
       <div class="jump-title">Jump to</div>
       <div id="jump-list"></div>
     </nav>
+
+    <!-- Item detail: swipeable high-quality gallery -->
+    <div id="detail-backdrop" class="detail-backdrop"></div>
+    <div id="detail-modal" class="detail-modal" role="dialog" aria-modal="true" aria-label="Item photos">
+      <button id="detail-close" class="detail-close" type="button" aria-label="Close">✕</button>
+      <div id="detail-count" class="detail-count"></div>
+      <div id="detail-gallery" class="detail-gallery"></div>
+      <div class="detail-info">
+        <h3 id="detail-title"></h3>
+        <p id="detail-desc" class="detail-desc"></p>
+        <div id="detail-price" class="detail-price"></div>
+      </div>
+    </div>
 
     <!-- Config: replace values based on your Google Sheet and WhatsApp number -->
     <!--
