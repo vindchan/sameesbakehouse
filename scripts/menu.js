@@ -38,9 +38,8 @@
   }
 
   const state = {
-    items: [], // {category, item, description, price, available, image_url}
-    categories: [],
-    active: 'All Items',
+    // Top categories, each with its own items plus one level of sub-categories.
+    groups: [], // [{ name, items:[card], subs:[{ name, items:[card] }] }]
   };
 
   function isTruthy(v) {
@@ -58,34 +57,62 @@
 
   // no special image URL transforms needed; use the URL as-is
 
-  function scrollToCat(cat) {
-    const el = document.getElementById(slug(cat));
+  function scrollToId(id) {
+    const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Top chips: tap to jump to a category. They do NOT filter — every category stays on the page.
+  // API items (available + has a photo) → the card objects the grid renders.
+  function toCardItems(apiItems, categoryName) {
+    const out = [];
+    (apiItems || []).forEach(it => {
+      if (it.available === false) return; // hide out-of-stock
+      if (!(it.image || '').trim()) return; // hide items without a photo
+      out.push({
+        category: categoryName || '',
+        item: it.name || '',
+        description: it.description || '',
+        price: it.price || '',
+        image_url: it.image || '',
+        images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
+      });
+    });
+    return out;
+  }
+
+  // Top chips: tap to jump to a top-level category. They do NOT filter.
   function renderJumpChips() {
     elTabs.innerHTML = '';
-    state.categories.forEach(cat => {
+    state.groups.forEach(g => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'tab';
-      b.textContent = cat;
-      b.dataset.cat = cat;
-      b.addEventListener('click', () => scrollToCat(cat));
+      b.textContent = g.name;
+      b.dataset.cat = g.name;
+      b.addEventListener('click', () => scrollToId(slug(g.name)));
       elTabs.appendChild(b);
     });
   }
 
-  // Bottom-right floating button → popup list of categories.
+  // Bottom-right floating button → categories, with sub-sections nested under each.
   function renderJumpMenu() {
     elJumpList.innerHTML = '';
-    state.categories.forEach(cat => {
+    state.groups.forEach(g => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = cat;
-      b.addEventListener('click', () => { closeJump(); scrollToCat(cat); });
+      b.textContent = g.name;
+      b.style.fontWeight = '600';
+      b.addEventListener('click', () => { closeJump(); scrollToId(slug(g.name)); });
       elJumpList.appendChild(b);
+      g.subs.forEach(s => {
+        const sb = document.createElement('button');
+        sb.type = 'button';
+        sb.textContent = s.name;
+        sb.style.paddingLeft = '26px';
+        sb.style.color = '#666';
+        sb.addEventListener('click', () => { closeJump(); scrollToId(slug(g.name + ' ' + s.name)); });
+        elJumpList.appendChild(sb);
+      });
     });
   }
 
@@ -183,31 +210,45 @@
     return card;
   }
 
-  // Every category is its own section with a big heading (Swiggy-style) — all shown at once.
+  function makeGrid(items) {
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    items.forEach(it => grid.appendChild(makeCard(it)));
+    return grid;
+  }
+
+  // Each top category is a section with a big heading; its sub-categories get sub-headings.
   function renderSections() {
     elSections.innerHTML = '';
-    state.categories.forEach(cat => {
-      const items = state.items.filter(it => it.category === cat);
-      if (!items.length) return;
+    state.groups.forEach(g => {
       const sec = document.createElement('section');
       sec.className = 'cat-section';
-      sec.id = slug(cat);
-      sec.dataset.cat = cat;
+      sec.id = slug(g.name);
+      sec.dataset.cat = g.name;
+
       const h = document.createElement('h2');
       h.className = 'cat-heading';
-      h.textContent = cat;
+      h.textContent = g.name;
       sec.appendChild(h);
-      const grid = document.createElement('div');
-      grid.className = 'grid';
-      items.forEach(it => grid.appendChild(makeCard(it)));
-      sec.appendChild(grid);
+
+      if (g.items.length) sec.appendChild(makeGrid(g.items));
+
+      g.subs.forEach(s => {
+        const sh = document.createElement('h3');
+        sh.className = 'subcat-heading';
+        sh.id = slug(g.name + ' ' + s.name);
+        sh.textContent = s.name;
+        sec.appendChild(sh);
+        sec.appendChild(makeGrid(s.items));
+      });
+
       elSections.appendChild(sec);
     });
 
     elSections.style.display = 'block';
     elLoading.style.display = 'none';
     elError.style.display = 'none';
-    elFab.style.display = state.categories.length ? 'inline-flex' : 'none';
+    elFab.style.display = state.groups.length ? 'inline-flex' : 'none';
     setupScrollSpy();
   }
 
@@ -304,30 +345,19 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
-      const items = [];
-      const categories = [];
+      const groups = [];
       (data.categories || []).forEach(cat => {
-        let hasVisible = false;
-        (cat.items || []).forEach(it => {
-          if (it.available === false) return; // hide out-of-stock items
-          if (!(it.image || '').trim()) return; // hide items without a photo
-          items.push({
-            category: cat.name || '',
-            item: it.name || '',
-            description: it.description || '',
-            price: it.price || '',
-            image_url: it.image || '',
-            images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
-            available: true,
-          });
-          hasVisible = true;
-        });
-        // preserve the exact category order set in the admin app
-        if (hasVisible && cat.name) categories.push(cat.name);
+        const direct = toCardItems(cat.items, cat.name);
+        const subs = (cat.subcategories || [])
+          .map(sc => ({ name: sc.name || '', items: toCardItems(sc.items, sc.name) }))
+          .filter(s => s.items.length > 0);
+        // keep the exact category/sub-category order set in the admin app
+        if ((direct.length || subs.length) && cat.name) {
+          groups.push({ name: cat.name, items: direct, subs });
+        }
       });
 
-      state.items = items;
-      state.categories = categories;
+      state.groups = groups;
       renderJumpChips();
       renderJumpMenu();
       renderSections();
