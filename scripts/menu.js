@@ -72,6 +72,7 @@
       if (it.available === false) return; // hide out-of-stock
       if (!(it.image || '').trim()) return; // hide items without a photo
       out.push({
+        id: it.id || '', // → shareable item page /i/<id>
         category: categoryName || '',
         item: it.name || '',
         description: it.description || '',
@@ -187,7 +188,11 @@
 
   async function shareItem() {
     if (!currentItem) return;
-    const url = location.origin + location.pathname + '?item=' + encodeURIComponent(currentItem.slug);
+    // Share the rich item page (photo preview + details) when we have an id;
+    // otherwise fall back to the in-menu deep link.
+    const url = currentItem.id
+      ? 'https://orders.sameesbakehouse.com/i/' + encodeURIComponent(currentItem.id)
+      : location.origin + location.pathname + '?item=' + encodeURIComponent(currentItem.slug);
     const title = 'Samee’s Bakehouse — ' + (currentItem.item || 'Menu');
     if (navigator.share) {
       try { await navigator.share({ title, url }); } catch (e) { /* user cancelled */ }
