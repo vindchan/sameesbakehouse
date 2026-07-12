@@ -25,7 +25,9 @@
   const elDetailTitle = document.getElementById('detail-title');
   const elDetailDesc = document.getElementById('detail-desc');
   const elDetailPrice = document.getElementById('detail-price');
+  const elShare = document.getElementById('detail-share');
   const slug = (s) => 'cat-' + String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const itemSlug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
   // Set WhatsApp CTA
   const waMsg = encodeURIComponent("Hi! I'd like to place an order from the menu.");
@@ -40,6 +42,7 @@
   const state = {
     // Top categories, each with its own items plus one level of sub-categories.
     groups: [], // [{ name, items:[card], subs:[{ name, items:[card] }] }]
+    itemBySlug: new Map(), // shareable-link lookup: slug → card item
   };
 
   function isTruthy(v) {
@@ -75,6 +78,7 @@
         price: it.price || '',
         image_url: it.image || '',
         images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
+        slug: itemSlug(it.name), // finalised (deduped) in loadMenu
       });
     });
     return out;
@@ -122,7 +126,10 @@
   elJumpBackdrop.addEventListener('click', closeJump);
 
   // ── Item detail overlay: all photos, high quality, swipe left/right ───────────
-  function openDetail(it) {
+  let currentItem = null;
+
+  function showDetail(it) {
+    currentItem = it;
     const imgs = (it.images && it.images.length) ? it.images : (it.image_url ? [it.image_url] : []);
     elGallery.innerHTML = '';
     imgs.forEach((u) => {
@@ -137,17 +144,39 @@
     elDetailDesc.style.display = it.description ? 'block' : 'none';
     elDetailPrice.textContent = it.price || '';
     elDetailPrice.style.display = it.price ? 'block' : 'none';
+    if (elShare) elShare.textContent = '🔗 Share this';
     elGallery.scrollLeft = 0;
     updateDetailCount();
     elDetailBackdrop.classList.add('open');
     elDetailModal.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
-  function closeDetail() {
+  function hideDetail() {
+    currentItem = null;
     elDetailBackdrop.classList.remove('open');
     elDetailModal.classList.remove('open');
     document.body.style.overflow = '';
   }
+
+  // Open with a shareable URL (?item=slug) so the exact item can be linked.
+  function openDetail(it) {
+    showDetail(it);
+    history.pushState({ item: it.slug }, '', location.pathname + '?item=' + encodeURIComponent(it.slug));
+  }
+  function closeDetail() {
+    if (history.state && history.state.item) {
+      history.back(); // pop our pushed entry → popstate hides the overlay (phone back button works too)
+    } else {
+      hideDetail();
+      history.replaceState({}, '', location.pathname);
+    }
+  }
+  window.addEventListener('popstate', () => {
+    const s = new URLSearchParams(location.search).get('item');
+    if (s && state.itemBySlug.has(s)) showDetail(state.itemBySlug.get(s));
+    else hideDetail();
+  });
+
   function updateDetailCount() {
     const total = elGallery.children.length;
     const w = elGallery.clientWidth;
@@ -155,9 +184,23 @@
     elDetailCount.textContent = total > 1 ? `${Math.min(i + 1, total)} / ${total}` : '';
     elDetailCount.style.display = total > 1 ? 'block' : 'none';
   }
+
+  async function shareItem() {
+    if (!currentItem) return;
+    const url = location.origin + location.pathname + '?item=' + encodeURIComponent(currentItem.slug);
+    const title = 'Samee’s Bakehouse — ' + (currentItem.item || 'Menu');
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); } catch (e) { /* user cancelled */ }
+    } else {
+      try { await navigator.clipboard.writeText(url); if (elShare) elShare.textContent = '✓ Link copied'; }
+      catch (e) { window.prompt('Copy this link:', url); }
+    }
+  }
+
   elGallery.addEventListener('scroll', updateDetailCount, { passive: true });
   elDetailClose.addEventListener('click', closeDetail);
   elDetailBackdrop.addEventListener('click', closeDetail);
+  if (elShare) elShare.addEventListener('click', shareItem);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); closeJump(); } });
 
   function makeCard(it) {
@@ -182,11 +225,11 @@
       img.style.objectFit = 'contain';
       wrap.style.background = '#F5EFE6';
     };
-    // Square or wide photo → show it 1:1; taller-than-square → keep the 4:5 frame.
+    // Show each photo at its own true shape — never crop.
     img.addEventListener('load', () => {
       if ((img.currentSrc || img.src).indexOf('logo.svg') !== -1) return;
-      const r = img.naturalWidth / img.naturalHeight;
-      if (r) wrap.style.aspectRatio = r >= 0.98 ? '1 / 1' : '4 / 5';
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (w && h) wrap.style.aspectRatio = w + ' / ' + h;
     });
     wrap.appendChild(img);
     card.appendChild(wrap);
@@ -357,10 +400,25 @@
         }
       });
 
+      // Finalise unique slugs and build the shareable-link lookup.
+      const bySlug = new Map();
+      const assign = (it) => {
+        let base = it.slug || 'item', s = base, n = 2;
+        while (bySlug.has(s)) s = base + '-' + (n++);
+        it.slug = s;
+        bySlug.set(s, it);
+      };
+      groups.forEach(g => { g.items.forEach(assign); g.subs.forEach(sub => sub.items.forEach(assign)); });
+
       state.groups = groups;
+      state.itemBySlug = bySlug;
       renderJumpChips();
       renderJumpMenu();
       renderSections();
+
+      // Deep link: /menu/?item=<slug> opens that item straight away.
+      const initSlug = new URLSearchParams(location.search).get('item');
+      if (initSlug && state.itemBySlug.has(initSlug)) showDetail(state.itemBySlug.get(initSlug));
     } catch (e) {
       showError(e.message || 'Failed to load menu');
     }
